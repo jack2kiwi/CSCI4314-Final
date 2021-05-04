@@ -16,7 +16,7 @@ class flock():
 
         frames = 300 #No. of frames
 
-        limit = 100 #Axis Limits
+        limit = 50 #Axis Limits
 
         L  = limit*2
 
@@ -26,7 +26,7 @@ class flock():
 
         delta = 1 #Time Step
 
-        c1 = 0.0001 #Attraction Scaling factor
+        c1 = 0.0005 #Attraction Scaling factor
 
         c2 = 0.01 #Repulsion scaling factor
 
@@ -38,15 +38,17 @@ class flock():
 
         object_count = 1
 
-        object_spread = 50
+        object_spread = 40
 
-        object_repulsion = c2 * 20
+        object_repulsion = c2 * 50
 
         images = [] #for plotting a gif of movements
 
         boundary = True
 
         boundary_range = 5
+
+        goal = np.array([limit - (2 * boundary_range), limit - (2 * boundary_range)])
 
 
 
@@ -71,8 +73,6 @@ class flock():
 
 
 
-
-
         for i in range(0, frames):
 
             v1 = np.zeros((2,N))
@@ -85,7 +85,10 @@ class flock():
 
             #Calculate Average Velocity v3
             v3 = [np.sum(v[0, :]) * c3 / N, np.sum(v[1, :]) * c3 / N]
+            center = [np.mean(p[0]), np.mean(p[1])]
 
+            furthest = 0
+            furthest_dist = L**2
 
             if (np.linalg.norm(v3) > vlimit): #limit maximum velocity
 
@@ -217,26 +220,49 @@ class flock():
                         if v[1, n] < 0:
                             v[1, n] = 0
 
-
-            #Move predators
-            center = [np.mean(p[0]), np.mean(p[1])]
-            for n in range(object_count):
-                r = center - object_p[:, n]
+                r = center - p[:, n]
                 rmag = math.sqrt(r[0]**2 + r[1]**2)
 
-                if(rmag > 25):
-                    object_v[:, n] = .01 * r
-                else:
-                    object_v[:, n] = 0
-            
-               
+                if rmag <= furthest_dist:
+                    furthest_dist = rmag
+                    furthest = n
+
+
+            #Move predators
+            for n in range(object_count):
+                if furthest_dist <= 40: #If they are compact enough move the group to the goal
+
+                    r = center - object_p[:, n]
+                    rmag = math.sqrt(r[0]**2 + r[1]**2)
+
+                    if(rmag > 30):
+                        target_position = goal - ((goal - center) * 1.25)
+                        
+                        r = target_position - object_p[:, n]
+                        rmag = math.sqrt(r[0]**2 + r[1]**2)
+
+                        object_v[:, n] = r / rmag
+
+                    else:
+                        object_v[:, n] = 0
+
+                else: #Otherwise move behind slagging 
+                    
+                    #Choose target_position behind the slagger towards the center
+                    target_position = center - ((center - p[:, furthest]) * 1.25)
+
+                    r = target_position - object_p[:, n]
+                    rmag = math.sqrt(r[0]**2 + r[1]**2)
+
+                    object_v[:, n] = r / rmag
+
 
             #YOUR CODE HERE
 
             #Update position
             p = p + (delta * v)
 
-            #object_p = object_p + (delta * object_v)
+            object_p = object_p + (delta * object_v)
 
 
             #Periodic boundary
@@ -281,6 +307,15 @@ class flock():
 
                 ax.scatter(object_p[0, :], object_p[1, :], color = 'red') # For drawing objects
 
+            spacing = np.linspace(boundary_range - limit, limit - boundary_range, 100)
+            high = np.full((100), limit - boundary_range)
+            low = np.full((100), boundary_range - limit)
+
+            ax.plot(high, spacing, color = "black")
+            ax.plot(low, spacing, color = "black")
+            ax.plot(spacing, high, color = "black")
+            ax.plot(spacing, low, color = "black")
+
             plt.xlim(-limit, limit)
 
             plt.ylim(-limit, limit)
@@ -296,7 +331,7 @@ class flock():
 
             images.append(imageio.imread('control' + str(i) + '.png'))
 
-        imageio.mimsave('/Users/JackHolland/Desktop/Boulder/CSCI4314/HW3/test.gif', images, fps = 25)
+        imageio.mimsave('/Users/JackHolland/Desktop/Boulder/CSCI4314/Project/test2.gif', images, fps = 25)
 
 
 
