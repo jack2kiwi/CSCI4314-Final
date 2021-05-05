@@ -36,11 +36,11 @@ class flock():
 
         vlimit = 1 #Maximum velocity
 
-        object_count = 1
+        object_count = 2
 
         object_spread = 40
 
-        object_repulsion = c2 * 50
+        object_repulsion = .5
 
         images = [] #for plotting a gif of movements
 
@@ -95,14 +95,11 @@ class flock():
                 v3 = [v3[0] * (vlimit/np.linalg.norm(v3)), v3[1] * (vlimit/np.linalg.norm(v3))]
 
 
-
             for n in range(0, N):
 
                 for m in range(0, N):
 
                     if m!=n:
-
-                        #YOUR CODE HERE
 
                         #Compute vector r from one agent to the next
                         r = p[:, m] - p[:, n]
@@ -126,9 +123,6 @@ class flock():
 
                             r[1] = r[1]+L
 
-
-
-                        #YOUR CODE HERE
 
                         #Compute distance between agents rmag
                         rmag = math.sqrt(r[0]**2 + r[1]**2)
@@ -176,9 +170,6 @@ class flock():
                     #Compute Repulsion [non-linear scaling] v2
                     v2[:, n] = v2[:, n] - (object_repulsion * r / (rmag ** 2))
 
-                   
-
-                #YOUR CODE HERE
 
                 #Compute random velocity component v4
                 v4 = c4 * np.random.randn(2)
@@ -230,28 +221,56 @@ class flock():
 
             #Move predators
             for n in range(object_count):
-                if furthest_dist <= 40: #If they are compact enough move the group to the goal
+                if(n % 2 == 0):
+                    if furthest_dist <= 40: #If they are compact enough move the group to the goal
 
-                    r = center - object_p[:, n]
-                    rmag = math.sqrt(r[0]**2 + r[1]**2)
+                        r = center - object_p[:, n]
+                        rmag = math.sqrt(r[0]**2 + r[1]**2)
 
-                    if(rmag > 30):
-                        target_position = goal - ((goal - center) * 1.25)
+                        if(rmag > 30):
+                            target_position = goal - ((goal - center) * 1.25)
+                            
+                            r = target_position - object_p[:, n]
+                            rmag = math.sqrt(r[0]**2 + r[1]**2)
+
+                            object_v[:, n] = r / rmag
+
+                        else:
+                            object_v[:, n] = 0
+
+                    else: #Otherwise move behind slagging 
                         
+                        #Choose target_position behind the slagger towards the center
+                        target_position = center - ((center - p[:, furthest]) * 1.25)
+
                         r = target_position - object_p[:, n]
                         rmag = math.sqrt(r[0]**2 + r[1]**2)
 
                         object_v[:, n] = r / rmag
+                else:
 
-                    else:
-                        object_v[:, n] = 0
+                    r = center - object_p[:, n]
+                    rmag = math.sqrt(r[0]**2 + r[1]**2)
 
-                else: #Otherwise move behind slagging 
-                    
-                    #Choose target_position behind the slagger towards the center
                     target_position = center - ((center - p[:, furthest]) * 1.25)
 
-                    r = target_position - object_p[:, n]
+                    if(rmag < 30):
+
+                        l_tangent = np.array([r[1], -r[0]])
+                        r_tangent = np.array([-r[1], r[0]])
+
+                        l_dist = math.sqrt((target_position[0]-l_tangent[0])**2 + (target_position[1]-l_tangent[1])**2)
+                        r_dist = math.sqrt((target_position[0]-r_tangent[0])**2 + (target_position[1]-r_tangent[1])**2)
+
+                        if(l_dist > r_dist):
+                            r = r_tangent - (.1 * r)
+                        else:
+                            r = l_tangent - (.1 * r)
+
+                    else:
+
+                        r = target_position - object_p[:, n]
+
                     rmag = math.sqrt(r[0]**2 + r[1]**2)
 
                     object_v[:, n] = r / rmag
@@ -282,13 +301,6 @@ class flock():
 
 
             p = tmp_p
-
-            # Can Also be written as:
-
-            # p[p > limit] -= limit * 2
-
-            # p[p < -limit] += limit * 2
-
 
 
             line1, = ax.plot(p[0, 0], p[1, 0])
@@ -331,7 +343,7 @@ class flock():
 
             images.append(imageio.imread('control' + str(i) + '.png'))
 
-        imageio.mimsave('/Users/JackHolland/Desktop/Boulder/CSCI4314/Project/test2.gif', images, fps = 25)
+        imageio.mimsave('/Users/JackHolland/Desktop/Boulder/CSCI4314/Project/test3.gif', images, fps = 25)
 
 
 
