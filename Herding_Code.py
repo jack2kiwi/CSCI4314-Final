@@ -16,7 +16,7 @@ class flock():
 
         frames = 300 #No. of frames
 
-        limit = 50 #Axis Limits
+        limit = 100 #Axis Limits
 
         L  = limit*2
 
@@ -26,7 +26,7 @@ class flock():
 
         delta = 1 #Time Step
 
-        c1 = 0.0005 #Attraction Scaling factor
+        c1 = 0.0003 #Attraction Scaling factor
 
         c2 = 0.01 #Repulsion scaling factor
 
@@ -36,7 +36,7 @@ class flock():
 
         vlimit = 1 #Maximum velocity
 
-        object_count = 2
+        object_count = 5
 
         object_spread = 40
 
@@ -48,7 +48,7 @@ class flock():
 
         boundary_range = 5
 
-        goal = np.array([limit - (2 * boundary_range), limit - (2 * boundary_range)])
+        goal = np.array([2 * boundary_range - limit, limit - 2 * boundary_range])
 
 
 
@@ -88,7 +88,10 @@ class flock():
             center = [np.mean(p[0]), np.mean(p[1])]
 
             furthest = 0
-            furthest_dist = L**2
+            furthest_dist = 0
+
+            second_furthest = 0
+            second_furthest_dist = 0
 
             if (np.linalg.norm(v3) > vlimit): #limit maximum velocity
 
@@ -214,10 +217,17 @@ class flock():
                 r = center - p[:, n]
                 rmag = math.sqrt(r[0]**2 + r[1]**2)
 
-                if rmag <= furthest_dist:
+                if rmag >= furthest_dist:
+                    second_furthest_dist = furthest_dist
+                    second_furthest = furthest
+
                     furthest_dist = rmag
                     furthest = n
 
+                elif rmag >= second_furthest_dist:
+
+                    second_furthest_dist = rmag
+                    second_furthest = n
 
             #Move predators
             for n in range(object_count):
@@ -226,33 +236,83 @@ class flock():
 
                         r = center - object_p[:, n]
                         rmag = math.sqrt(r[0]**2 + r[1]**2)
+                        gc_adjusted = (goal - center)
 
-                        if(rmag > 30):
-                            target_position = goal - ((goal - center) * 1.25)
-                            
+                        if(object_count > 2):
+
+                            spread = 1 / math.ceil((object_count-1)/2)
+
+                            pos = n/2
+
+                            tangent = np.array([gc_adjusted[1], -gc_adjusted[0]])
+
+                            gc_adjusted = gc_adjusted - (.3 * tangent) + (spread * pos * tangent)
+
+                        gc_mag = math.sqrt(gc_adjusted[0]**2 + gc_adjusted[1]**2)
+
+                        target_position = center - ((gc_adjusted) * 30 / gc_mag)
+
+                        if(rmag > 25):
+
                             r = target_position - object_p[:, n]
-                            rmag = math.sqrt(r[0]**2 + r[1]**2)
-
-                            object_v[:, n] = r / rmag
 
                         else:
-                            object_v[:, n] = 0
+                            l_tangent = np.array([r[1], -r[0]])
+                            r_tangent = np.array([-r[1], r[0]])
+
+                            l_dist = math.sqrt((target_position[0]-l_tangent[0])**2 + (target_position[1]-l_tangent[1])**2)
+                            r_dist = math.sqrt((target_position[0]-r_tangent[0])**2 + (target_position[1]-r_tangent[1])**2)
+
+                            if(l_dist > r_dist):
+                                r = r_tangent
+                            else:
+                                r = l_tangent
+
+                        rmag = math.sqrt(r[0]**2 + r[1]**2)
+
+                        object_v[:, n] = r / rmag
 
                     else: #Otherwise move behind slagging 
                         
                         #Choose target_position behind the slagger towards the center
+                        r = center - object_p[:, n]
+                        rmag = math.sqrt(r[0]**2 + r[1]**2)
+
                         target_position = center - ((center - p[:, furthest]) * 1.25)
 
-                        r = target_position - object_p[:, n]
+                        if(rmag < 30):
+
+                            l_tangent = np.array([r[1], -r[0]])
+                            r_tangent = np.array([-r[1], r[0]])
+
+                            l_dist = math.sqrt((target_position[0]-l_tangent[0])**2 + (target_position[1]-l_tangent[1])**2)
+                            r_dist = math.sqrt((target_position[0]-r_tangent[0])**2 + (target_position[1]-r_tangent[1])**2)
+
+                            if(l_dist > r_dist):
+                                r = r_tangent - (.1 * r)
+                            else:
+                                r = l_tangent - (.1 * r)
+
+                        else:
+
+                            r = target_position - object_p[:, n]
+
                         rmag = math.sqrt(r[0]**2 + r[1]**2)
 
                         object_v[:, n] = r / rmag
+
                 else:
 
                     r = center - object_p[:, n]
                     rmag = math.sqrt(r[0]**2 + r[1]**2)
 
-                    target_position = center - ((center - p[:, furthest]) * 1.25)
+                    if(n < 2):
+
+                        target_position = center - ((center - p[:, furthest]) * 1.25)
+                    
+                    else:
+
+                        target_position = center - ((center - p[:, second_furthest]) * 1.25)
 
                     if(rmag < 30):
 
@@ -315,9 +375,15 @@ class flock():
 
             ax.quiver(p[0,:], p[1,:], v[0,:], v[1,:]) # For drawing velocity arrows
 
-            if object_count > 0:
+            for n in range(object_count):
+                
+                if(n%2 == 0):
+                    ax.scatter(object_p[0, n], object_p[1, n], color = 'red')
 
-                ax.scatter(object_p[0, :], object_p[1, :], color = 'red') # For drawing objects
+                else:
+                    ax.scatter(object_p[0, n], object_p[1, n], color = 'orange')
+
+            ax.scatter(goal[0], goal[1], color = 'blue')
 
             spacing = np.linspace(boundary_range - limit, limit - boundary_range, 100)
             high = np.full((100), limit - boundary_range)
@@ -343,11 +409,10 @@ class flock():
 
             images.append(imageio.imread('control' + str(i) + '.png'))
 
-        imageio.mimsave('/Users/JackHolland/Desktop/Boulder/CSCI4314/Project/test3.gif', images, fps = 25)
+        imageio.mimsave('/Users/JackHolland/Desktop/Boulder/CSCI4314/Project/test9.gif', images, fps = 25)
 
 
 
 flock_py = flock()
 
 flock_py.flocking_python()
-
